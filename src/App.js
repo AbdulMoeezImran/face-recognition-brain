@@ -19,8 +19,35 @@ class App extends Component {
       imageUrl: '',
       box: {},
       route: "signin",
-      isSignedIn: false
+      isSignedIn: false,
+      user: {
+        id: "",
+        name: "",
+        email: "",
+        password: '',
+        entries: 0,
+        joined: new Date()
+      }
     }
+  }
+
+  loadingUser = (data) => {
+    this.setState({
+      user: {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        entries: data.entries,
+        joined: data.joined
+      }
+    })
+  }
+
+  componentDidMount() {
+    fetch('http://localhost:3001/')
+      .then(response => response.json())
+      .then(console.log)
   }
 
   checkImage = (url) => {
@@ -32,7 +59,22 @@ class App extends Component {
         api_secret: 'yXRQkB95X8DCiN7VWFwh',
       },
     })
-      .then(response => this.displayFaceBox(this.CalculateFaceLocation(response)))
+      .then(response => {
+        if (response) {
+          fetch('http://localhost:3001/image', {
+            method: 'put',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: this.state.user.id
+            })
+          })
+          .then(response=> response.json())
+          .then(count=>{
+            this.setState(Object.assign(this.state.user, {entries:count}))
+          })
+        }
+        this.displayFaceBox(this.CalculateFaceLocation(response))
+      })
       .catch(err => console.log(err));
   };
 
@@ -68,17 +110,17 @@ class App extends Component {
   }
 
   onRouteChange = (route) => {
-    if (route==='signout'){
-      this.setState({isSignedIn: false})
-    }else if(route==='home'){
-      this.setState({isSignedIn: true})
+    if (route === 'signout') {
+      this.setState({ isSignedIn: false })
+    } else if (route === 'home') {
+      this.setState({ isSignedIn: true })
     }
     this.setState({ route: route });
   }
 
 
   render() {
-    const {isSignedIn, imageUrl, route, box} = this.state;
+    const { isSignedIn, imageUrl, route, box, } = this.state;
     return (
       <div className="App">
         <ParticlesBg className="particles" type="tadpole" bg={true} />
@@ -86,14 +128,14 @@ class App extends Component {
         {route === 'home'
           ? <div>
             <Logo />
-            <Rank />
+            <Rank UserName={this.state.user.name} UserEntries={this.state.user.entries} />
             <ImageLinkForm InputChange={this.onInputChange} ButtonSubmit={this.onButtonSubmit} />
             <FaceRecognition box={box} ImageUrl={imageUrl} />
           </div>
           : (
             route === 'signin'
-              ? <SignIn RouteChange={this.onRouteChange} />
-              : <Register RouteChange={this.onRouteChange} />
+              ? <SignIn LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
+              : <Register LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
           )
 
         }
