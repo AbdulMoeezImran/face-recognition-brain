@@ -8,27 +8,28 @@ import Register from './components/Register/Register';
 import FaceRecognition from './components/FaceRecognition/FaceRecognition';
 import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm';
 import './App.css';
-import axios from 'axios';
 
+
+const initialState = {
+  input: "",
+  imageUrl: '',
+  box: {},
+  route: "signin",
+  isSignedIn: false,
+  user: {
+    id: "",
+    name: "",
+    email: "",
+    password: '',
+    entries: 0,
+    joined: new Date()
+  }
+}
 
 class App extends Component {
   constructor() {
     super();
-    this.state = {
-      input: "",
-      imageUrl: '',
-      box: {},
-      route: "signin",
-      isSignedIn: false,
-      user: {
-        id: "",
-        name: "",
-        email: "",
-        password: '',
-        entries: 0,
-        joined: new Date()
-      }
-    }
+    this.state = initialState;
   }
 
   loadingUser = (data) => {
@@ -47,18 +48,17 @@ class App extends Component {
   componentDidMount() {
     fetch('http://localhost:3001/')
       .then(response => response.json())
-      .then(console.log)
   }
 
   checkImage = (url) => {
-    axios.get('https://api.sightengine.com/1.0/check.json', {
-      params: {
-        url,
-        models: 'faces',
-        api_user: 972725277,
-        api_secret: 'yXRQkB95X8DCiN7VWFwh',
-      },
+    fetch('http://localhost:3001/imageurl', {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: url
+      })
     })
+      .then(response => response.json())
       .then(response => {
         if (response) {
           fetch('http://localhost:3001/image', {
@@ -68,10 +68,11 @@ class App extends Component {
               id: this.state.user.id
             })
           })
-          .then(response=> response.json())
-          .then(count=>{
-            this.setState(Object.assign(this.state.user, {entries:count}))
-          })
+            .then(response => response.json())
+            .then(count => {
+              this.setState(Object.assign(this.state.user, { entries: count }))
+            })
+            .catch(console.log);
         }
         this.displayFaceBox(this.CalculateFaceLocation(response))
       })
@@ -79,7 +80,7 @@ class App extends Component {
   };
 
   CalculateFaceLocation = (data) => {
-    const Face = data.data.faces[0];
+    const Face = data.faces[0];
     const image = document.getElementById("inputimage");
     const width = Number(image.width);
     const height = Number(image.height);
@@ -111,7 +112,7 @@ class App extends Component {
 
   onRouteChange = (route) => {
     if (route === 'signout') {
-      this.setState({ isSignedIn: false })
+      this.setState(initialState)
     } else if (route === 'home') {
       this.setState({ isSignedIn: true })
     }
@@ -133,9 +134,11 @@ class App extends Component {
             <FaceRecognition box={box} ImageUrl={imageUrl} />
           </div>
           : (
-            route === 'signin'
+            route === 'signin' || route === 'signout'
               ? <SignIn LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
-              : <Register LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
+              : route === 'register'
+                ? <Register LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
+                : null
           )
 
         }
