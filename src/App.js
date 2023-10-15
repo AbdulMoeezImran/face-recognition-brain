@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import ParticlesBg from 'particles-bg';
+import { Routes, Route, useNavigate } from "react-router-dom";
 import Navigation from './components/Navigation/Navigation';
 import Logo from './components/Logo/Logo';
 import Rank from './components/Rank/Rank';
@@ -9,48 +10,41 @@ import FaceRecognition from './components/FaceRecognition/FaceRecognition';
 import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm';
 import './App.css';
 
-
 const initialState = {
-  input: "",
-  imageUrl: '',
-  box: {},
-  route: "signin",
-  isSignedIn: false,
-  user: {
-    id: "",
-    name: "",
-    email: "",
-    password: '',
-    entries: 0,
-    joined: new Date()
-  }
-}
+  id: '',
+  name: '',
+  email: '',
+  password: '',
+  entries: 0,
+  joined: new Date(),
+};
 
-class App extends Component {
-  constructor() {
-    super();
-    this.state = initialState;
-  }
+const App = () => {
+  const [input, setInput] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [box, setBox] = useState({});
+  const [isSignedIn, setisSignedIn] = useState(false);
+  const [user, setUser] = useState(initialState);
 
-  loadingUser = (data) => {
-    this.setState({
-      user: {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        entries: data.entries,
-        joined: data.joined
-      }
-    })
-  }
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate('/signin');
+    // eslint-disable-next-line
+  }, [])
 
-  componentDidMount() {
-    fetch('http://localhost:3001/')
-      .then(response => response.json())
-  }
+  const loadingUser = (data) => {
+    setUser({
+      ...initialState,
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      entries: data.entries,
+      joined: data.joined,
+    });
+  };
 
-  checkImage = (url) => {
+  const checkImage = (url) => {
     fetch('http://localhost:3001/imageurl', {
       method: 'post',
       headers: { 'Content-Type': 'application/json' },
@@ -65,21 +59,24 @@ class App extends Component {
             method: 'put',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              id: this.state.user.id
+              id: user.id
             })
           })
             .then(response => response.json())
             .then(count => {
-              this.setState(Object.assign(this.state.user, { entries: count }))
+              setUser(prevUser => ({
+                ...prevUser,
+                entries: count,
+              }));
             })
             .catch(console.log);
         }
-        this.displayFaceBox(this.CalculateFaceLocation(response))
+        displayFaceBox(CalculateFaceLocation(response))
       })
       .catch(err => console.log(err));
   };
 
-  CalculateFaceLocation = (data) => {
+  const CalculateFaceLocation = (data) => {
     const Face = data.faces[0];
     const image = document.getElementById("inputimage");
     const width = Number(image.width);
@@ -92,59 +89,51 @@ class App extends Component {
     }
   }
 
-  displayFaceBox = (box) => {
-    this.setState({ box: box })
+  const displayFaceBox = (box) => {
+    setBox(box);
   }
 
-
-
-  onInputChange = (event) => {
-    this.setState({ input: event.target.value });
+  const onInputChange = (event) => {
+    setInput(event.target.value);
   }
 
+  const onisSignedInChange = () => {
+    setisSignedIn(!isSignedIn);
+  }
 
-  onButtonSubmit = () => {
-    if (this.state.input !== "") {
-      this.setState({ imageUrl: this.state.input });
-      this.checkImage(this.state.input);
+  const resetUser = () => {
+    setInput('');
+    setImageUrl('');
+    setBox({});
+    setUser(initialState);
+  };
+
+  const onButtonSubmit = () => {
+    if (input !== "") {
+      setImageUrl(input);
+      checkImage(input);
     }
   }
 
-  onRouteChange = (route) => {
-    if (route === 'signout') {
-      this.setState(initialState)
-    } else if (route === 'home') {
-      this.setState({ isSignedIn: true })
-    }
-    this.setState({ route: route });
-  }
-
-
-  render() {
-    const { isSignedIn, imageUrl, route, box, } = this.state;
-    return (
-      <div className="App">
-        <ParticlesBg className="particles" type="tadpole" bg={true} />
-        <Navigation SignedIn={isSignedIn} RouteChange={this.onRouteChange} />
-        {route === 'home'
-          ? <div>
+  return (
+    <div className="App">
+      <ParticlesBg className="particles" type="custom" bg={true} />
+      <Navigation SignedIn={isSignedIn} onSignedInChange={onisSignedInChange} resetUser={resetUser} />
+      <Routes>
+        <Route path="/" element={
+          <div>
             <Logo />
-            <Rank UserName={this.state.user.name} UserEntries={this.state.user.entries} />
-            <ImageLinkForm InputChange={this.onInputChange} ButtonSubmit={this.onButtonSubmit} />
+            <Rank UserName={user.name} UserEntries={user.entries} />
+            <ImageLinkForm InputChange={onInputChange} ButtonSubmit={onButtonSubmit} />
             <FaceRecognition box={box} ImageUrl={imageUrl} />
           </div>
-          : (
-            route === 'signin' || route === 'signout'
-              ? <SignIn LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
-              : route === 'register'
-                ? <Register LoadUser={this.loadingUser} RouteChange={this.onRouteChange} />
-                : null
-          )
-
-        }
-      </div>
-    );
-  }
+        } />
+        <Route path="/signin" element={<SignIn LoadUser={loadingUser} onSignedInChange={onisSignedInChange} />} />
+        <Route path="/register" element={<Register LoadUser={loadingUser} onSignedInChange={onisSignedInChange} />} />
+      </Routes>
+    </div>
+  );
 }
+
 
 export default App;
